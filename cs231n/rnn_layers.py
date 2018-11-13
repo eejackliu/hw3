@@ -143,16 +143,15 @@ dx, dprev_h, dWx, dWh, db
     # defined above. You can use a for loop to help compute the backward pass.   #
     ##############################################################################
     # tmp=dh.transpose(1,0,2).tolist()
-    dWh,dWx,db=0
-
-    for i in range(dh.shape[1]-1,0,-1):
-        dx_t, dh0, dWx_t, dWh_t, db_t =rnn_step_backward(dh[:,i,:],cache[i])
+    dWh=dWx=db=dh0=0
+    dx=[]
+    for i in range(dh.shape[1]-1,-1,-1):
+        dx_t, dh0, dWx_t, dWh_t, db_t =rnn_step_backward(dh[:,i,:]+dh0,cache[i])
         dWh,dWx,db=dWh+dWh_t,dWx+dWx_t,db+db_t
         dx.append(dx_t)
     # dh0=dh0_t
     dx=np.array(dx)
-    dx=np.flipud(dx)
-    print (dx.shape)
+    dx=np.flipud(dx).transpose(1,0,2)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -180,7 +179,8 @@ def word_embedding_forward(x, W):
     #                                                                            #
     # HINT: This can be done in one line using NumPy's array indexing.           #
     ##############################################################################
-    pass
+    out=W[x]
+    cache=(x,W)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################

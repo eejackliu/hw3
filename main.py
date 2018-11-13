@@ -147,7 +147,38 @@ print('dWx error: ', rel_error(dWx_num, dWx))
 print('dWh error: ', rel_error(dWh_num, dWh))
 print('db error: ', rel_error(db_num, db))
 #%%
-for i in range(5,0,-1):
-    print i
+N, T, V, D = 2, 4, 5, 3
+
+x = np.asarray([[0, 3, 1, 2], [2, 1, 0, 3]])
+W = np.linspace(0, 1, num=V*D).reshape(V, D)
+
+out, _ = word_embedding_forward(x, W)
+expected_out = np.asarray([
+ [[ 0.,          0.07142857,  0.14285714],
+  [ 0.64285714,  0.71428571,  0.78571429],
+  [ 0.21428571,  0.28571429,  0.35714286],
+  [ 0.42857143,  0.5,         0.57142857]],
+ [[ 0.42857143,  0.5,         0.57142857],
+  [ 0.21428571,  0.28571429,  0.35714286],
+  [ 0.,          0.07142857,  0.14285714],
+  [ 0.64285714,  0.71428571,  0.78571429]]])
+
+print('out error: ', rel_error(expected_out, out))
+#%%
+np.random.seed(231)
+
+N, T, V, D = 50, 3, 5, 6
+x = np.random.randint(V, size=(N, T))
+W = np.random.randn(V, D)
+
+out, cache = word_embedding_forward(x, W)
+dout = np.random.randn(*out.shape)
+dW = word_embedding_backward(dout, cache)
+
+f = lambda W: word_embedding_forward(x, W)[0]
+dW_num = eval_numerical_gradient_array(f, W, dout)
+
+print('dW error: ', rel_error(dW, dW_num))
+
 
 
