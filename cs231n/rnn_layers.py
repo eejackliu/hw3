@@ -209,7 +209,9 @@ def word_embedding_backward(dout, cache):
     # Note that words can appear more than once in a sequence.                   #
     # HINT: Look up the function np.add.at                                       #
     ##############################################################################
-    pass
+    x,w=cache
+    dW=np.zeros_like(w)
+    np.add.at(dW,x,dout)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -436,11 +438,11 @@ def temporal_softmax_loss(x, y, mask, verbose=False):
 
     N, T, V = x.shape
 
-    x_flat = x.reshape(N * T, V)
-    y_flat = y.reshape(N * T)
+    x_flat = x.reshape(N * T, V) # when do math calculate ,always matrix with two dimention
+    y_flat = y.reshape(N * T)      # first dimention for accumalation
     mask_flat = mask.reshape(N * T)
 
-    probs = np.exp(x_flat - np.max(x_flat, axis=1, keepdims=True))
+    probs = np.exp(x_flat - np.max(x_flat, axis=1, keepdims=True)) # sub a small num for each element
     probs /= np.sum(probs, axis=1, keepdims=True)
     loss = -np.sum(mask_flat * np.log(probs[np.arange(N * T), y_flat])) / N
     dx_flat = probs.copy()

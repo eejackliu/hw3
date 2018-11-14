@@ -179,6 +179,82 @@ f = lambda W: word_embedding_forward(x, W)[0]
 dW_num = eval_numerical_gradient_array(f, W, dout)
 
 print('dW error: ', rel_error(dW, dW_num))
+#%%
+np.random.seed(231)
 
+# Gradient check for temporal affine layer
+N, T, D, M = 2, 3, 4, 5
+x = np.random.randn(N, T, D)
+w = np.random.randn(D, M)
+b = np.random.randn(M)
 
+out, cache = temporal_affine_forward(x, w, b)
 
+dout = np.random.randn(*out.shape)
+
+fx = lambda x: temporal_affine_forward(x, w, b)[0]
+fw = lambda w: temporal_affine_forward(x, w, b)[0]
+fb = lambda b: temporal_affine_forward(x, w, b)[0]
+
+dx_num = eval_numerical_gradient_array(fx, x, dout)
+dw_num = eval_numerical_gradient_array(fw, w, dout)
+db_num = eval_numerical_gradient_array(fb, b, dout)
+
+dx, dw, db = temporal_affine_backward(dout, cache)
+
+print('dx error: ', rel_error(dx_num, dx))
+print('dw error: ', rel_error(dw_num, dw))
+print('db error: ', rel_error(db_num, db))
+#%%
+# Sanity check for temporal softmax loss
+from cs231n.rnn_layers import temporal_softmax_loss
+
+N, T, V = 100, 1, 10
+
+def check_loss(N, T, V, p):
+    x = 0.001 * np.random.randn(N, T, V)
+    y = np.random.randint(V, size=(N, T))
+    mask = np.random.rand(N, T) <= p
+    print(temporal_softmax_loss(x, y, mask)[0])
+
+check_loss(100, 1, 10, 1.0)   # Should be about 2.3
+check_loss(100, 10, 10, 1.0)  # Should be about 23
+check_loss(5000, 10, 10, 0.1) # Should be about 2.3
+# Gradient check for temporal softmax loss
+N, T, V = 7, 8, 9
+
+x = np.random.randn(N, T, V)
+y = np.random.randint(V, size=(N, T))
+mask = (np.random.rand(N, T) > 0.5)
+
+loss, dx = temporal_softmax_loss(x, y, mask, verbose=False)
+
+dx_num = eval_numerical_gradient(lambda x: temporal_softmax_loss(x, y, mask)[0], x, verbose=False)
+
+print('dx error: ', rel_error(dx, dx_num))
+#%%
+N, D, W, H = 10, 20, 30, 40
+word_to_idx = {'<NULL>': 0, 'cat': 2, 'dog': 3}
+V = len(word_to_idx)
+T = 13
+
+model = CaptioningRNN(word_to_idx,
+          input_dim=D,
+          wordvec_dim=W,
+          hidden_dim=H,
+          cell_type='rnn',
+          dtype=np.float64)
+
+# Set all model parameters to fixed values
+for k, v in model.params.items():
+    model.params[k] = np.linspace(-1.4, 1.3, num=v.size).reshape(*v.shape)
+
+features = np.linspace(-1.5, 0.3, num=(N * D)).reshape(N, D)
+captions = (np.arange(N * T) % V).reshape(N, T)
+
+loss, grads = model.loss(features, captions)
+expected_loss = 9.83235591003
+
+print('loss: ', loss)
+print('expected loss: ', expected_loss)
+print('difference: ', abs(loss - expected_loss))
