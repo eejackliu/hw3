@@ -226,10 +226,16 @@ class CaptioningRNN(object):
         # NOTE: we are still working over minibatches in this function. Also if   #
         # you are using an LSTM, initialize the first cell state to zeros.        #
         ###########################################################################
-        h0=np.dot(features,W_proj)+b_proj
+        pre_h=np.dot(features,W_proj)+b_proj
         caption_in=self._start*np.ones(N,1)
-        x,_=word_embedding_forward()
-        x_embed,_=temporal_affine_forward()
+        x_embed,_=word_embedding_forward(caption_in,W_embed)
+        for i in range(max_length):
+            pre_h,_=rnn_step_forward(x_embed,pre_h,Wx,Wh,b)
+            x_vocab,_=temporal_affine_forward(pre_h,W_vocab,b_vocab)
+            x_vocab=np.max(x_vocab,axis=2,keepdims=True)
+            caption_in[:,i]=x_vocab
+            x_embed,_=word_embedding_forward(x_vocab,W_embed)
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
