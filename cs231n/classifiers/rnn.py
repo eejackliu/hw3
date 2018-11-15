@@ -138,9 +138,30 @@ class CaptioningRNN(object):
         # gradients for self.params[k].                                            #
         #                                                                          #
         # Note also that you are allowed to make use of functions from layers.py   #
-        # in your implementation, if needed.                                       #
+        # in your implementation, if needed.
+        #                               #
         ############################################################################
-        pass
+        x,cache_embed=word_embedding_forward(captions_in,W_embed)
+        h0=np.dot(features,W_proj)+b_proj
+        if self.cell_type is 'rnn':
+            h,cache=rnn_forward(x,h0,Wx,Wh,b)
+        else:
+            h,cache=lstm_forward(x,h0,Wx,Wh,b)
+        score,cache_t=temporal_affine_forward(h,W_vocab,b_vocab)
+        loss,dl=temporal_softmax_loss(score,captions_out,mask)
+        dx,dw_vocab,db_vocab=temporal_affine_backward(dl,cache_t)
+        if self.cell_type is "rnn":
+            dx,dh0,dwx,dwh,db=rnn_backward(dx,cache)
+        else:
+            dx,dh0,dwx,dwh,db=lstm_backward(dx,cache)
+        dw_proj=np.dot(features.T,dh0)
+        db_proj=np.sum(dh0,axis=0)
+        # dx=np.dot(dx,W_proj.T)
+        dw_embed=word_embedding_backward(dx,cache_embed)
+        grads['W_proj'],grads['b_proj']=dw_proj,db_proj
+        grads['W_embed']=dw_embed
+        grads['Wx'],grads['Wh'],grads['b']=dwx,dwh,db
+        grads['W_vocab'],grads['b_vocab']=dw_vocab,db_vocab
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -205,7 +226,10 @@ class CaptioningRNN(object):
         # NOTE: we are still working over minibatches in this function. Also if   #
         # you are using an LSTM, initialize the first cell state to zeros.        #
         ###########################################################################
-        pass
+        h0=np.dot(features,W_proj)+b_proj
+        caption_in=self._start*np.ones(N,1)
+        x,_=word_embedding_forward()
+        x_embed,_=temporal_affine_forward()
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################

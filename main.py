@@ -20,28 +20,28 @@ plt.rcParams['image.cmap'] = 'gray'
 def rel_error(x, y):
     """ returns relative error """
     return np.max(np.abs(x - y) / (np.maximum(1e-8, np.abs(x) + np.abs(y))))
-# #%%
-# # Load COCO data from disk; this returns a dictionary
-# # We'll work with dimensionality-reduced features for this notebook, but feel
-# # free to experiment with the original features by changing the flag below.
-# data = load_coco_data(pca_features=True)
-#
-# # Print out all the keys and values from the data dictionary
-# for k, v in data.items():
-#     if type(v) == np.ndarray:
-#         print(k, type(v), v.shape, v.dtype)
-#     else:
-#         print(k, type(v), len(v))
-# #%%
-# batch_size = 3
-#
-# captions, features, urls = sample_coco_minibatch(data, batch_size=batch_size)
-# for i, (caption, url) in enumerate(zip(captions, urls)):
-#     plt.imshow(image_from_url(url))
-#     plt.axis('off')
-#     caption_str = decode_captions(caption, data['idx_to_word'])
-#     plt.title(caption_str)
-#     plt.show()
+#%%
+# Load COCO data from disk; this returns a dictionary
+# We'll work with dimensionality-reduced features for this notebook, but feel
+# free to experiment with the original features by changing the flag below.
+data = load_coco_data(pca_features=True)
+
+# Print out all the keys and values from the data dictionary
+for k, v in data.items():
+    if type(v) == np.ndarray:
+        print(k, type(v), v.shape, v.dtype)
+    else:
+        print(k, type(v), len(v))
+#%%
+batch_size = 3
+
+captions, features, urls = sample_coco_minibatch(data, batch_size=batch_size)
+for i, (caption, url) in enumerate(zip(captions, urls)):
+    plt.imshow(image_from_url(url))
+    plt.axis('off')
+    caption_str = decode_captions(caption, data['idx_to_word'])
+    plt.title(caption_str)
+    plt.show()
 #%%
 N, D, H = 3, 10, 4
 
@@ -258,3 +258,77 @@ expected_loss = 9.83235591003
 print('loss: ', loss)
 print('expected loss: ', expected_loss)
 print('difference: ', abs(loss - expected_loss))
+#%%
+np.random.seed(231)
+
+batch_size = 2
+timesteps = 3
+input_dim = 4
+wordvec_dim = 5
+hidden_dim = 6
+word_to_idx = {'<NULL>': 0, 'cat': 2, 'dog': 3}
+vocab_size = len(word_to_idx)
+
+captions = np.random.randint(vocab_size, size=(batch_size, timesteps))
+features = np.random.randn(batch_size, input_dim)
+
+model = CaptioningRNN(word_to_idx,
+          input_dim=input_dim,
+          wordvec_dim=wordvec_dim,
+          hidden_dim=hidden_dim,
+          cell_type='rnn',
+          dtype=np.float64,
+        )
+
+loss, grads = model.loss(features, captions)
+
+for param_name in sorted(grads):
+    f = lambda _: model.loss(features, captions)[0]
+    param_grad_num = eval_numerical_gradient(f, model.params[param_name], verbose=False, h=1e-6)
+    e = rel_error(param_grad_num, grads[param_name])
+    print('%s relative error: %e' % (param_name, e))
+    #%%
+np.random.seed(231)
+
+small_data = load_coco_data(max_train=50)
+
+small_rnn_model = CaptioningRNN(
+          cell_type='rnn',
+          word_to_idx=data['word_to_idx'],
+          input_dim=data['train_features'].shape[1],
+          hidden_dim=512,
+          wordvec_dim=256,
+        )
+
+small_rnn_solver = CaptioningSolver(small_rnn_model, small_data,
+           update_rule='adam',
+           num_epochs=50,
+           batch_size=25,
+           optim_config={
+             'learning_rate': 5e-3,
+           },
+           lr_decay=0.95,
+           verbose=True, print_every=10,
+         )
+small_rnn_solver.train()
+
+# Plot the training losses
+plt.plot(small_rnn_solver.loss_history)
+plt.xlabel('Iteration')
+plt.ylabel('Loss')
+plt.title('Training loss history')
+plt.show()
+#%%
+for split in ['train', 'val']:
+    minibatch = sample_coco_minibatch(small_data, split=split, batch_size=2)
+    gt_captions, features, urls = minibatch
+    gt_captions = decode_captions(gt_captions, data['idx_to_word'])
+
+    sample_captions = small_rnn_model.sample(features)
+    sample_captions = decode_captions(sample_captions, data['idx_to_word'])
+
+    for gt_caption, sample_caption, url in zip(gt_captions, sample_captions, urls):
+        plt.imshow(image_from_url(url))
+        plt.title('%s\n%s\nGT:%s' % (split, sample_caption, gt_caption))
+        plt.axis('off')
+        plt.show()
