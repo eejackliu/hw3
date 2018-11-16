@@ -259,14 +259,17 @@ def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b):
     # TODO: Implement the forward pass for a single timestep of an LSTM.        #
     # You may want to use the numerically stable sigmoid implementation above.  #
     #############################################################################
-    pass
+    a=np.dot(x,Wx)+np.dot(prev_h,Wh)+b
+    i,f,o,g=np.hsplit(a,4)# 4h*h into h*h
+    i,f,o=map(sigmoid,[i,f,o])
+    g=np.tanh(g)
+    next_c=f*prev_c+i*g
+    next_h=o*np.tanh(next_c)
+    cache=(i,f,o,g,next_c,prev_c,prev_h,Wx,Wh,x)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
-
     return next_h, next_c, cache
-
-
 def lstm_step_backward(dnext_h, dnext_c, cache):
     """
     Backward pass for a single timestep of an LSTM.
@@ -291,8 +294,21 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
     # HINT: For sigmoid and tanh you can compute local derivatives in terms of  #
     # the output value from the nonlinearity.                                   #
     #############################################################################
-    pass
-    ##############################################################################
+    i,f,o,g,next_c,prev_c,prev_h,wx,wh,x=cache
+    do=dnext_h*np.tanh(next_c)
+    dnext_c+=dnext_h*o*(1-np.tanh(next_c)**2)
+    df,di,dg=dnext_c*(prev_c,g,i)
+    dprev_c = dnext_c * f
+    di,df,do=map(lambda x,y:x*y*(1.-y),[di,df,do],[i,f,o])
+    dg=dg*(1.-g**2)
+    da=np.hstack((di,df,do,dg))
+    dWh=np.dot(prev_h.T,da)
+    dprev_h=np.dot(da,wh.T)
+    dWx=np.dot(x.T,da)
+    dx=np.dot(da,wx.T)
+    db=np.sum(da,axis=0)
+
+    # ###################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
 

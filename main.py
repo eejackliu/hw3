@@ -290,7 +290,7 @@ for param_name in sorted(grads):
     #%%
 np.random.seed(231)
 
-small_data = load_coco_data(max_train=50)
+small_data = load_coco_data()
 
 small_rnn_model = CaptioningRNN(
           cell_type='rnn',
