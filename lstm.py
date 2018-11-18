@@ -20,15 +20,15 @@ plt.rcParams['image.cmap'] = 'gray'
 def rel_error(x, y):
     """ returns relative error """
     return np.max(np.abs(x - y) / (np.maximum(1e-8, np.abs(x) + np.abs(y))))
-# #%%
-# data = load_coco_data(pca_features=True)
-#
-# # Print out all the keys and values from the data dictionary
-# for k, v in data.items():
-#     if type(v) == np.ndarray:
-#         print(k, type(v), v.shape, v.dtype)
-#     else:
-#         print(k, type(v), len(v))
+#%%
+data = load_coco_data(pca_features=True)
+
+# Print out all the keys and values from the data dictionary
+for k, v in data.items():
+    if type(v) == np.ndarray:
+        print(k, type(v), v.shape, v.dtype)
+    else:
+        print(k, type(v), len(v))
 #%%
 N, D, H = 3, 4, 5
 x = np.linspace(-0.4, 1.2, num=N*D).reshape(N, D)
@@ -151,3 +151,78 @@ print('dh0 error: ', rel_error(dh0_num, dh0))
 print('dWx error: ', rel_error(dWx_num, dWx))
 print('dWh error: ', rel_error(dWh_num, dWh))
 print('db error: ', rel_error(db_num, db))
+#because relu will lose the negative part which maybe will get influence on later part
+#%%
+N, D, W, H = 10, 20, 30, 40
+word_to_idx = {'<NULL>': 0, 'cat': 2, 'dog': 3}
+V = len(word_to_idx)
+T = 13
+
+model = CaptioningRNN(word_to_idx,
+          input_dim=D,
+          wordvec_dim=W,
+          hidden_dim=H,
+          cell_type='lstm',
+          dtype=np.float64)
+
+# Set all model parameters to fixed values
+for k, v in model.params.items():
+  model.params[k] = np.linspace(-1.4, 1.3, num=v.size).reshape(*v.shape)
+
+features = np.linspace(-0.5, 1.7, num=N*D).reshape(N, D)
+captions = (np.arange(N * T) % V).reshape(N, T)
+
+loss, grads = model.loss(features, captions)
+expected_loss = 9.82445935443
+
+print('loss: ', loss)
+print('expected loss: ', expected_loss)
+print('difference: ', abs(loss - expected_loss))
+#%%
+np.random.seed(231)
+
+small_data = load_coco_data(max_train=50)
+
+small_lstm_model = CaptioningRNN(
+          cell_type='lstm',
+          word_to_idx=data['word_to_idx'],
+          input_dim=data['train_features'].shape[1],
+          hidden_dim=512,
+          wordvec_dim=256,
+          dtype=np.float32,
+        )
+
+small_lstm_solver = CaptioningSolver(small_lstm_model, small_data,
+           update_rule='adam',
+           num_epochs=50,
+           batch_size=25,
+           optim_config={
+             'learning_rate': 5e-3,
+           },
+           lr_decay=0.995,
+           verbose=True, print_every=10,
+         )
+
+small_lstm_solver.train()
+
+# Plot the training losses
+plt.plot(small_lstm_solver.loss_history)
+plt.xlabel('Iteration')
+plt.ylabel('Loss')
+plt.title('Training loss history')
+plt.show()
+#%%
+for split in ['train', 'val']:
+    minibatch = sample_coco_minibatch(small_data, split=split, batch_size=2)
+    gt_captions, features, urls = minibatch
+    gt_captions = decode_captions(gt_captions, data['idx_to_word'])
+
+    sample_captions = small_lstm_model.sample(features)
+    sample_captions = decode_captions(sample_captions, data['idx_to_word'])
+
+    for gt_caption, sample_caption, url in zip(gt_captions, sample_captions, urls):
+        plt.imshow(image_from_url(url))
+        print(sample_caption)
+        plt.title('%s\n%s\nGT:%s' % (split, sample_caption, gt_caption))
+        plt.axis('off')
+        plt.show()

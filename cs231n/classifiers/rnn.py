@@ -229,10 +229,15 @@ class CaptioningRNN(object):
         pre_h=np.dot(features,W_proj)+b_proj
         caption_in=self._start*np.ones((N,1),dtype=np.int)
         x_embed,_=word_embedding_forward(caption_in,W_embed)
-
+        pre_c=np.zeros_like(pre_h)
         for i in range(max_length):
             x_embed = np.squeeze(x_embed)
-            pre_h,_=rnn_step_forward(x_embed,pre_h,Wx,Wh,b)
+            if self.cell_type is "rnn":
+                pre_h,_=rnn_step_forward(x_embed,pre_h,Wx,Wh,b)
+            else:
+                if i==0:
+                    print("in")
+                pre_h,pre_c,_=lstm_step_forward(x_embed,pre_h,pre_c,Wx,Wh,b)
             x_vocab,_=temporal_affine_forward(pre_h[:,None,:],W_vocab,b_vocab)
             x_vocab=np.around(np.max(x_vocab,axis=2)).astype(np.int)
             captions[:,i]=np.squeeze(x_vocab)
