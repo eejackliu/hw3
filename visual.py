@@ -96,6 +96,9 @@ def compute_saliency_maps(X, y, model):
     out=model(X)
     loss=F.cross_entropy(out,y)
     loss.backward()
+    saliency=torch.abs(X.grad)
+    argmax=torch.argmax(saliency,dim=1,keepdim=True)
+    saliency=saliency.gather(1,argmax).squeeze()
 
     ##############################################################################
     #                             END OF YOUR CODE                               #
@@ -112,6 +115,7 @@ def show_saliency_maps(X, y):
     # Convert the saliency map from Torch Tensor to numpy array and show images
     # and saliency maps together.
     saliency = saliency.numpy()
+    print(saliency)
     N = X.shape[0]
     for i in range(N):
         plt.subplot(2, N, i + 1)
@@ -125,3 +129,4 @@ def show_saliency_maps(X, y):
     plt.show()
 
 show_saliency_maps(X, y)
+np.maximum
