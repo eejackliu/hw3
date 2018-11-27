@@ -20,6 +20,7 @@ class CaptioningRNN(object):
 
     def __init__(self, word_to_idx, input_dim=512, wordvec_dim=128,
                  hidden_dim=128, cell_type='rnn', dtype=np.float32):
+
         """
         Construct a new CaptioningRNN instance.
 
